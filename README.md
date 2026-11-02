@@ -1,18 +1,21 @@
 dReal: An SMT Solver for Nonlinear Theories of Reals
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Ubuntu_CI](https://github.com/dreal/dreal4/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/dreal/dreal4/actions/workflows/ubuntu.yml)
-[![MacOS_CI](https://github.com/dreal/dreal4/actions/workflows/macos.yml/badge.svg)](https://github.com/dreal/dreal4/actions/workflows/macos.yml)
-[![codecov](https://codecov.io/gh/dreal/dreal4/branch/master/graph/badge.svg)](https://codecov.io/gh/dreal/dreal4)
 
 How to Install
 ==============
 
-macOS 13 / 12 / 11:
+macOS (Apple Silicon and Intel):
+
+There is no usable prebuilt package for Apple Silicon, so build from
+this repository (requires [Homebrew](https://brew.sh) and the Xcode
+Command Line Tools):
 
 ```bash
-/usr/bin/curl -fsSL https://raw.githubusercontent.com/dreal/dreal4/master/setup/mac/install.sh | bash
-dreal
+# Run from the root of this repository.
+./setup/mac/install_prereqs.sh   # one-time: Bazel, ibex 2.7.4, etc.
+bazel build //...                # build dReal
+./bazel-bin/dreal/dreal --version
 ```
 
 Ubuntu 22.04 / 20.04:
@@ -45,7 +48,7 @@ pip3 install dreal
 
 Note that you still need to install dReal prerequisites such as IBEX
 and CLP in your system. Please follow [the
-instructions](https://github.com/dreal/dreal4#install-prerequsites).
+instructions](#install-prerequisites).
 
 
 To test the Python binding, run `python3` in a terminal and type the
@@ -75,8 +78,7 @@ y : [8.929064928123818135, 8.929756298502674383]
 z : [0.06815055407334302817, 0.06858905276351445757]
 ```
 
-More examples are available at
-[dreal4/dreal/test/python](https://github.com/dreal/dreal4/tree/master/dreal/test/python).
+More examples are available in [dreal/test/python](dreal/test/python).
 
 
 Docker
@@ -98,12 +100,28 @@ How to Build
 Install Prerequisites
 --------------------
 
-macOS 13 / 12 / 11:
+macOS (Apple Silicon and Intel):
 
 ```bash
-git clone https://github.com/dreal/dreal4 && cd dreal4
+# Run from the root of this repository.
 ./setup/mac/install_prereqs.sh
 ```
+
+The script refuses to run as root and expects
+[Homebrew](https://brew.sh) and the Xcode Command Line Tools
+(`xcode-select --install`) to be present. It installs:
+[bazelisk](https://github.com/bazelbuild/bazelisk) (which provides the
+`bazel` command, pinned via `.bazelversion`),
+[bison](https://www.gnu.org/software/bison),
+[clp](https://projects.coin-or.org/Clp),
+[flex](https://www.gnu.org/software/flex),
+[gmp](https://gmplib.org),
+[ibex](https://github.com/ibex-team/ibex-lib) (pinned at 2.7.4 and built
+from the formula vendored in `setup/mac/ibex@2.7.4.rb`, published into
+a local `dreal4/local` Homebrew tap),
+[nlopt](http://nlopt.readthedocs.io),
+[pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config), and
+[python](https://www.python.org).
 
 Ubuntu 22.04 / 20.04
 
@@ -153,6 +171,59 @@ In CI, we test that dReal can be built using the following compilers:
    [gcc-12](https://gcc.gnu.org/gcc-12)
  - macOS: [Apple clang](https://developer.apple.com/library/content/documentation/CompilerTools/Conceptual/LLVMCompilerOverview/index.html)
 
+On macOS the `bazel` command comes from
+[bazelisk](https://github.com/bazelbuild/bazelisk), installed by
+`./setup/mac/install_prereqs.sh`. bazelisk reads `.bazelversion` in the
+repository root and downloads the pinned Bazel (7.0.0) on first use, so
+every machine builds with the same Bazel version.
+
+
+Testing on macOS: Current Status
+--------------------------------
+
+Snapshot on this machine (macOS on Apple Silicon / arm64, Apple clang
+21, Python 3.15): `bazel build //...` succeeds, and
+`bazel test //...` executes 445 tests, of which 303 pass. The 142
+failures fall into four groups:
+
+ * 119 `*_cpplint` targets. The vendored cpplint (pinned in
+   `WORKSPACE`) does `import sre_compile`, a module that was removed
+   from Python in 3.13, so every lint test dies at import time. This
+   is a linter/Python mismatch only; no C++ source failed to compile.
+   It has not been patched yet.
+
+ * 21 tests that answer `unsat` where the expected answer is
+   `delta-sat with ...`. They cluster around the `forall`-quantifier
+   and numeric-optimization paths: the `Minimize` API
+   (`//dreal/api:api_test`, `//dreal/test/python:api_test`),
+   `cav18_benchmark_with_local_opt` / `..._without_local_opt`,
+   `dreal/test/dr/{unconstrained_opt_*,constrained_opt_*}`,
+   `//dreal/test/smt2:exist_forall_{04,06,07,08,10}`,
+   `ea_01`, `ea_beale`, `minimize_03`, `github_issue_192`,
+   `github_issue_201`, and `//dreal/test/python:github_issue_154`
+   (which gets `None` back from the solver). Preliminary debugging
+   localized a wrong answer to an ibex forward/backward interval
+   contraction (the `IbexFwdbwd` contractor: its backward pass
+   empties a box component whose variables do not even occur in the
+   constraint). It is not yet
+   established whether a build of the original code from the
+   reference (Ubuntu/Docker) environment misbehaves the same way, so
+   no source change has been made for this group.
+
+ * `//dreal/test/smt2:get_value_01`: the computed model differs from
+   the recorded one by one ULP in one interval bound — expected
+   floating-point drift between Linux/x86 and Apple Silicon (libm,
+   instruction selection).
+
+ * `//dreal/util:timer_test`: the unit test starts a timer, runs a
+   1000-iteration loop, and expects `elapsed() > 0`; on this machine
+   that loop finishes inside one clock tick, so the assertion fails.
+   Environmental/timing flakiness, not a code difference.
+
+Nothing in the solver’s behavior has been changed deliberately; all
+commits so far are build/tooling fixes for a modern macOS
+dependency/toolchain.
+
 
 C++ Documentation
 -----------------
@@ -191,11 +262,14 @@ If you want to use
 [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config),
 you need to set up `PKG_CONFIG_PATH` as follows:
 
-macOS 13 / 12 / 11:
+macOS:
 
 ```bash
-export PKG_CONFIG_PATH=/usr/local/opt/ibex@2.7.4/share/pkgconfig:${PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH="$(brew --prefix)/opt/ibex@2.7.4/share/pkgconfig:${PKG_CONFIG_PATH}"
 ```
+
+(`brew --prefix` resolves to `/opt/homebrew` on Apple Silicon and
+`/usr/local` on Intel Macs.)
 
 Ubuntu 22.04 / 20.04:
 

@@ -12,3 +12,5 @@ dist/
 doxygen_cxx
 dreal.egg-info/
 logs/
+/MODULE.bazel.lock
+/MODULE.bazel

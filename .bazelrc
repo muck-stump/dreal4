@@ -8,6 +8,12 @@ build --host_cxxopt=-std=c++14
 # Default to an optimized build.
 build -c opt
 
+# Newer macOS SDKs/libc++ refuse deployment targets below 11.0 (they warn
+# with "The selected platform is no longer supported by libc++", and we build
+# with -Werror). Bazel's default minimum is older than that.
+build --macos_minimum_os=11.0
+build --host_macos_minimum_os=11.0
+
 # lexyacc
 build --extra_toolchains=@dreal//third_party/com_github_google_kythe/tools/build_rules:lexyacc_remote_toolchain
 
@@ -123,3 +129,18 @@ test:kcov --test_timeout=120,600,1800,7200
 # When compiilng dReal as an external package, this rcfile is not loaded and we
 # won't promote warnings to errors by default.
 build --copt=-Werror
+
+# Do not promote warnings inside external/vendored dependencies (pinned old
+# releases of abseil, fmt, spdlog, pybind11, googletest, ...) to errors: those
+# releases predate the compilers we build with today, and we cannot update
+# them at will (see WORKSPACE). Keeping -Werror for dReal's own sources is
+# what we actually want to police.
+build --per_file_copt=external/.*@-Wno-error
+
+# Two external headers get pulled into dReal's own translation units, so the
+# -Wno-error above cannot help there: abseil 20230125 still uses the
+# __is_trivially_relocatable builtin that current clang deprecates
+# (-Wdeprecated-builtins). We cannot bump abseil past that release without
+# raising the C++ standard (see dreal/workspace.bzl), so silence just this
+# diagnostic instead.
+build --copt=-Wno-deprecated-builtins

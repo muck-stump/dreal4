@@ -463,6 +463,20 @@ struct less<dreal::drake::symbolic::Formula> {
   }
 };
 
+#if defined(__APPLE__) && defined(_LIBCPP_VERSION)
+// Recent libc++ (macOS) rewrites std::less<T> into the transparent
+// std::less<void> while inlining std::set/std::map lookups, so it would
+// compare with `lhs < rhs` instead of calling the std::less<Formula>
+// specialization above. There is no bool-returning `f1 < f2` for Formula,
+// so opt our type out of that rewrite.
+template <>
+struct __make_transparent<
+    dreal::drake::symbolic::Formula,
+    std::less<dreal::drake::symbolic::Formula>> {
+  using type = std::less<dreal::drake::symbolic::Formula>;
+};
+#endif
+
 /* Provides std::equal_to<dreal::drake::symbolic::Formula>. */
 template <>
 struct equal_to<dreal::drake::symbolic::Formula> {
