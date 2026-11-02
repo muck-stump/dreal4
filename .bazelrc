@@ -129,3 +129,18 @@ test:kcov --test_timeout=120,600,1800,7200
 # When compiilng dReal as an external package, this rcfile is not loaded and we
 # won't promote warnings to errors by default.
 build --copt=-Werror
+
+# Do not promote warnings inside external/vendored dependencies (pinned old
+# releases of abseil, fmt, spdlog, pybind11, googletest, ...) to errors: those
+# releases predate the compilers we build with today, and we cannot update
+# them at will (see WORKSPACE). Keeping -Werror for dReal's own sources is
+# what we actually want to police.
+build --per_file_copt=external/.*@-Wno-error
+
+# Two external headers get pulled into dReal's own translation units, so the
+# -Wno-error above cannot help there: abseil 20230125 still uses the
+# __is_trivially_relocatable builtin that current clang deprecates
+# (-Wdeprecated-builtins). We cannot bump abseil past that release without
+# raising the C++ standard (see dreal/workspace.bzl), so silence just this
+# diagnostic instead.
+build --copt=-Wno-deprecated-builtins
