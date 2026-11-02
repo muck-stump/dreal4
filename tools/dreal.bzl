@@ -140,6 +140,13 @@ def dreal_pybind_library(
             "@dreal//tools:linux": [
                 "-Wl,%s" % (_make_search_paths("$$ORIGIN", levels_to_root),),
             ],
+            # Python modules on macOS do not link against libpython; the
+            # interpreter resolves the _Py_* symbols when it dlopen()s the
+            # extension. Current macOS linkers refuse to leave them
+            # undefined unless we ask for it explicitly.
+            "@dreal//tools:apple": [
+                "-Wl,-undefined,dynamic_lookup",
+            ],
             "@//conditions:default": [],
         }),
         linkshared = 1,
