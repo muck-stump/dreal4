@@ -8,6 +8,12 @@ build --host_cxxopt=-std=c++14
 # Default to an optimized build.
 build -c opt
 
+# Newer macOS SDKs/libc++ refuse deployment targets below 11.0 (they warn
+# with "The selected platform is no longer supported by libc++", and we build
+# with -Werror). Bazel's default minimum is older than that.
+build --macos_minimum_os=11.0
+build --host_macos_minimum_os=11.0
+
 # lexyacc
 build --extra_toolchains=@dreal//third_party/com_github_google_kythe/tools/build_rules:lexyacc_remote_toolchain
 
