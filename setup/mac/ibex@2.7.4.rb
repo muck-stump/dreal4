@@ -61,6 +61,9 @@
 #      which only exists on Intel Macs; on Apple Silicon Homebrew lives in
 #      /opt/homebrew. (It also passes waf a stripped-down environment, so
 #      Homebrew's pkg-config shims cannot be used here.)
+#   3. ibex.pc advertises -msse3 and -ffloat-store in its Cflags. arm64 clang
+#      rejects -msse3 outright (Apple Silicon has no SSE), and it rejects
+#      -ffloat-store too, which matters because dReal builds with -Werror.
 #
 # dReal needs exactly ibex 2.7.4 (the upstream ibex formula is 2.9.x), so
 # we build this pinned version from source.
@@ -119,6 +122,12 @@ class IbexAT274 < Formula
       end
     EOS
     inreplace "#{share}/pkgconfig/ibex.pc", prefix, opt_prefix
+
+    # Patch 3: drop x86-only flags from ibex.pc on arm64.
+    if Hardware::CPU.arm?
+      inreplace "#{share}/pkgconfig/ibex.pc", " -msse3", ""
+      inreplace "#{share}/pkgconfig/ibex.pc", " -ffloat-store", ""
+    end
   end
 
   test do
