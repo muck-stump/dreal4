@@ -1,18 +1,21 @@
 dReal: An SMT Solver for Nonlinear Theories of Reals
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Ubuntu_CI](https://github.com/dreal/dreal4/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/dreal/dreal4/actions/workflows/ubuntu.yml)
-[![MacOS_CI](https://github.com/dreal/dreal4/actions/workflows/macos.yml/badge.svg)](https://github.com/dreal/dreal4/actions/workflows/macos.yml)
-[![codecov](https://codecov.io/gh/dreal/dreal4/branch/master/graph/badge.svg)](https://codecov.io/gh/dreal/dreal4)
 
 How to Install
 ==============
 
-macOS 13 / 12 / 11:
+macOS (Apple Silicon and Intel):
+
+There is no usable prebuilt package for Apple Silicon, so build from
+this repository (requires [Homebrew](https://brew.sh) and the Xcode
+Command Line Tools):
 
 ```bash
-/usr/bin/curl -fsSL https://raw.githubusercontent.com/dreal/dreal4/master/setup/mac/install.sh | bash
-dreal
+# Run from the root of this repository.
+./setup/mac/install_prereqs.sh   # one-time: Bazel, ibex 2.7.4, etc.
+bazel build //...                # build dReal
+./bazel-bin/dreal/dreal --version
 ```
 
 Ubuntu 22.04 / 20.04:
@@ -45,7 +48,7 @@ pip3 install dreal
 
 Note that you still need to install dReal prerequisites such as IBEX
 and CLP in your system. Please follow [the
-instructions](https://github.com/dreal/dreal4#install-prerequsites).
+instructions](#install-prerequisites).
 
 
 To test the Python binding, run `python3` in a terminal and type the
@@ -75,8 +78,7 @@ y : [8.929064928123818135, 8.929756298502674383]
 z : [0.06815055407334302817, 0.06858905276351445757]
 ```
 
-More examples are available at
-[dreal4/dreal/test/python](https://github.com/dreal/dreal4/tree/master/dreal/test/python).
+More examples are available in [dreal/test/python](dreal/test/python).
 
 
 Docker
@@ -98,12 +100,28 @@ How to Build
 Install Prerequisites
 --------------------
 
-macOS 13 / 12 / 11:
+macOS (Apple Silicon and Intel):
 
 ```bash
-git clone https://github.com/dreal/dreal4 && cd dreal4
+# Run from the root of this repository.
 ./setup/mac/install_prereqs.sh
 ```
+
+The script refuses to run as root and expects
+[Homebrew](https://brew.sh) and the Xcode Command Line Tools
+(`xcode-select --install`) to be present. It installs:
+[bazelisk](https://github.com/bazelbuild/bazelisk) (which provides the
+`bazel` command, pinned via `.bazelversion`),
+[bison](https://www.gnu.org/software/bison),
+[clp](https://projects.coin-or.org/Clp),
+[flex](https://www.gnu.org/software/flex),
+[gmp](https://gmplib.org),
+[ibex](https://github.com/ibex-team/ibex-lib) (pinned at 2.7.4 and built
+from the formula vendored in `setup/mac/ibex@2.7.4.rb`, published into
+a local `dreal4/local` Homebrew tap),
+[nlopt](http://nlopt.readthedocs.io),
+[pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config), and
+[python](https://www.python.org).
 
 Ubuntu 22.04 / 20.04
 
@@ -153,6 +171,12 @@ In CI, we test that dReal can be built using the following compilers:
    [gcc-12](https://gcc.gnu.org/gcc-12)
  - macOS: [Apple clang](https://developer.apple.com/library/content/documentation/CompilerTools/Conceptual/LLVMCompilerOverview/index.html)
 
+On macOS the `bazel` command comes from
+[bazelisk](https://github.com/bazelbuild/bazelisk), installed by
+`./setup/mac/install_prereqs.sh`. bazelisk reads `.bazelversion` in the
+repository root and downloads the pinned Bazel (7.0.0) on first use, so
+every machine builds with the same Bazel version.
+
 
 C++ Documentation
 -----------------
@@ -191,11 +215,14 @@ If you want to use
 [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config),
 you need to set up `PKG_CONFIG_PATH` as follows:
 
-macOS 13 / 12 / 11:
+macOS:
 
 ```bash
-export PKG_CONFIG_PATH=/usr/local/opt/ibex@2.7.4/share/pkgconfig:${PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH="$(brew --prefix)/opt/ibex@2.7.4/share/pkgconfig:${PKG_CONFIG_PATH}"
 ```
+
+(`brew --prefix` resolves to `/opt/homebrew` on Apple Silicon and
+`/usr/local` on Intel Macs.)
 
 Ubuntu 22.04 / 20.04:
 
