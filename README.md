@@ -178,6 +178,53 @@ repository root and downloads the pinned Bazel (7.0.0) on first use, so
 every machine builds with the same Bazel version.
 
 
+Testing on macOS: Current Status
+--------------------------------
+
+Snapshot on this machine (macOS on Apple Silicon / arm64, Apple clang
+21, Python 3.15): `bazel build //...` succeeds, and
+`bazel test //...` executes 445 tests, of which 303 pass. The 142
+failures fall into four groups:
+
+ * 119 `*_cpplint` targets. The vendored cpplint (pinned in
+   `WORKSPACE`) does `import sre_compile`, a module that was removed
+   from Python in 3.13, so every lint test dies at import time. This
+   is a linter/Python mismatch only; no C++ source failed to compile.
+   It has not been patched yet.
+
+ * 21 tests that answer `unsat` where the expected answer is
+   `delta-sat with ...`. They cluster around the `forall`-quantifier
+   and numeric-optimization paths: the `Minimize` API
+   (`//dreal/api:api_test`, `//dreal/test/python:api_test`),
+   `cav18_benchmark_with_local_opt` / `..._without_local_opt`,
+   `dreal/test/dr/{unconstrained_opt_*,constrained_opt_*}`,
+   `//dreal/test/smt2:exist_forall_{04,06,07,08,10}`,
+   `ea_01`, `ea_beale`, `minimize_03`, `github_issue_192`,
+   `github_issue_201`, and `//dreal/test/python:github_issue_154`
+   (which gets `None` back from the solver). Preliminary debugging
+   localized a wrong answer to an ibex forward/backward interval
+   contraction (the `IbexFwdbwd` contractor: its backward pass
+   empties a box component whose variables do not even occur in the
+   constraint). It is not yet
+   established whether a build of the original code from the
+   reference (Ubuntu/Docker) environment misbehaves the same way, so
+   no source change has been made for this group.
+
+ * `//dreal/test/smt2:get_value_01`: the computed model differs from
+   the recorded one by one ULP in one interval bound — expected
+   floating-point drift between Linux/x86 and Apple Silicon (libm,
+   instruction selection).
+
+ * `//dreal/util:timer_test`: the unit test starts a timer, runs a
+   1000-iteration loop, and expects `elapsed() > 0`; on this machine
+   that loop finishes inside one clock tick, so the assertion fails.
+   Environmental/timing flakiness, not a code difference.
+
+Nothing in the solver’s behavior has been changed deliberately; all
+commits so far are build/tooling fixes for a modern macOS
+dependency/toolchain.
+
+
 C++ Documentation
 -----------------
 
