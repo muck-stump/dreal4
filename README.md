@@ -181,6 +181,22 @@ every machine builds with the same Bazel version.
 Testing on macOS: Current Status
 --------------------------------
 
+**Tested interpreter: Python 3.14** — prerequisite: `brew install
+python@3.14`. Since commit 6a0c0cc, `py_test`s (the vendored cpplint and
+the Python API tests) run on Homebrew's `python3.14` on macOS: `.bazelrc`
+sets `PYTHON_BIN_PATH` through `--repo_env` in the `build:macos`
+section, kept above the `try-import` so an untracked `user.bazelrc` can
+re-pin it (needed only if Homebrew is in a non-default prefix). Linux is
+unaffected — it keeps PATH's `python3`, exactly as upstream CI always
+has, so reference-environment runs do not change.
+Why it matters: Homebrew's unversioned `python3` advanced to 3.15, whose
+stdlib no longer has `sre_compile`; cpplint imports it at startup, so
+under 3.15 all 119 `*_cpplint` targets die at import while the other 326
+tests are unaffected. The snapshot below was taken under 3.15.2 — it is
+the last measurement on Python 3.15 (commit e6d31b4, recorded in the A/B
+workspace's README/report); it is re-measured under this pin there as
+cell C2.
+
 Snapshot on this machine (macOS on Apple Silicon / arm64, Apple clang
 21, Python 3.15): `bazel build //...` succeeds, and
 `bazel test //...` executes 445 tests, of which 303 pass. The 142
