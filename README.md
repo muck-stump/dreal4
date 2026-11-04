@@ -195,7 +195,11 @@ under 3.15 all 119 `*_cpplint` targets die at import while the other 326
 tests are unaffected. The snapshot below was taken under 3.15.2 — it is
 the last measurement on Python 3.15 (commit e6d31b4, recorded in the A/B
 workspace's README/report); it is re-measured under this pin there as
-cell C2.
+cell C2 — result: 445/445 executed, **423 pass / 22 fail**, all 119
+`*_cpplint` targets passing under 3.14 and the remaining 22 exactly the
+non-Python failures of the snapshot below (the 21 wrong-answer cluster
+plus the one-ULP `get_value_01`; `timer_test` passed this round, it is
+flaky). Evidence: the workspace's `report.md` and `runs/failed.C2.txt`.
 
 Snapshot on this machine (macOS on Apple Silicon / arm64, Apple clang
 21, Python 3.15): `bazel build //...` succeeds, and
