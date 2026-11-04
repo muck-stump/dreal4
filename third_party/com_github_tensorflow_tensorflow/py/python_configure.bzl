@@ -138,10 +138,18 @@ def _check_python_bin(repository_ctx, python_bin):
     cmd = '[[ -x "%s" ]] && [[ ! -d "%s" ]]' % (python_bin, python_bin)
     result = raw_exec(repository_ctx, [get_bash_bin(repository_ctx), "-c", cmd])
     if result.return_code == 1:
-        auto_config_fail("--define %s='%s' is not executable. Is it the python binary?" % (
-            PYTHON_BIN_PATH,
-            python_bin,
-        ))
+        auto_config_fail(
+            "The Python interpreter '%s' (from %s) is not executable.\n" % (
+                python_bin,
+                PYTHON_BIN_PATH,
+            ) +
+            "dreal4's tests are validated against Python 3.14: on macOS install it with " +
+            "`brew install python@3.14`, or point %s at an interpreter that exists on " +
+            "this machine (e.g. user.bazelrc: build:macos --repo_env=%s=/path/to/python)." % (
+                PYTHON_BIN_PATH,
+                PYTHON_BIN_PATH,
+            ),
+        )
 
 def _get_python_include(repository_ctx, python_bin):
     """Gets the python include path."""
