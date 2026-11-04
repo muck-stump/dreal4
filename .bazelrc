@@ -1,3 +1,16 @@
+# Pin the interpreter every py_test runs on (the vendored cpplint and the
+# Python API tests). The suite's .expected outputs and the cpplint pin are
+# validated against Python 3.14: on macOS Homebrew's unversioned `python3`
+# advances on its own schedule (it moved to 3.15, whose stdlib dropped
+# `sre_compile` -> all 119 *_cpplint targets fail at import time).
+# macOS + Homebrew only: Linux keeps whatever `python3` is on PATH, exactly
+# as upstream CI always has it, so reference runs are unaffected. Kept
+# ABOVE the try-import so an untracked user.bazelrc can re-pin (later
+# options win); prerequisite: brew install python@3.14 (see README,
+# "Testing on macOS").
+build --enable_platform_specific_config
+build:macos --repo_env=PYTHON_BIN_PATH=/opt/homebrew/bin/python3.14
+
 # Import any user defined rules.
 try-import %workspace%/user.bazelrc
 
